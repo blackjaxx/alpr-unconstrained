@@ -4,7 +4,7 @@
 
 本仓库是 ECCV 2018 论文 [*"License Plate Detection and Recognition in Unconstrained Scenarios"*](http://sergiomsilva.com/pubs/alpr-unconstrained/) 的实现代码。
 
-> **v2.0.0 现代化升级**：已将工具链全面升级为 Python 3.11+ / Keras 3 / TensorFlow 2.x / YOLOv8 / PaddleOCR，不再需要编译 Darknet C 代码。
+> **v2.0.0 现代化升级**：已将工具链全面升级为 Python 3.11+ / Keras 3 / TensorFlow 2.x / YOLOv8 / PaddleOCR，不再需要编译 Darknet C 代码。同时提供了图形化 Web 界面。
 
 如果您的出版物使用了本代码产生的成果，请引用我们的论文：
 
@@ -33,6 +33,7 @@ pip install .
 - **Ultralytics YOLOv8** — 车辆检测（替代原版 Darknet YOLO）
 - **PaddleOCR** — 车牌字符识别（替代原版 Darknet OCR）
 - **OpenCV 4.8+** — 图像处理
+- **Flask 3.0+** — Web UI 框架
 - **NumPy** — 数值计算
 
 > 不再需要编译 Darknet C 代码，不再受 CUDA 版本兼容性困扰。
@@ -47,7 +48,25 @@ bash get-networks.sh
 
 YOLOv8 和 PaddleOCR 的模型权重会在首次运行时自动下载。
 
-## 运行测试
+## 图形化 Web 界面
+
+本项目提供了一个简洁的 Web 图形界面，支持图片上传和一键识别：
+
+```bash
+# 安装依赖后启动
+python webapp.py
+```
+
+然后在浏览器中打开 [http://127.0.0.1:5000](http://127.0.0.1:5000)
+
+**Web UI 功能：**
+- 拖拽或点击上传图片
+- 一键运行完整车牌识别流程
+- 显示标注结果（车辆框 + 车牌四边形 + 号码）
+- 显示各阶段处理耗时
+- 自适应深色主题
+
+## 命令行运行
 
 使用 `run.sh` 脚本运行车牌识别流程。需要 3 个参数：
 
@@ -95,23 +114,26 @@ YOLOv8 和 PaddleOCR 同样自动检测并使用可用的 GPU。
 
 ```
 alpr-unconstrained/
-├── vehicle-detection.py         # 阶段1: 车辆检测 (YOLOv8)
-├── license-plate-detection.py   # 阶段2: 车牌检测 (WPOD-Net)
-├── license-plate-ocr.py         # 阶段3: 字符识别 (PaddleOCR)
-├── create-model.py              # WPOD-Net 模型定义
-├── train-detector.py            # 训练脚本
-├── run.sh                       # 流水线入口脚本
-├── get-networks.sh              # 下载预训练模型
-├── annotation-tool.py           # 标注工具（GUI）
-├── gen-outputs.py               # 结果可视化输出
-├── pyproject.toml               # 依赖管理
-└── src/                         # 核心库
-    ├── label.py                 # 标注数据类
-    ├── loss.py                  # 自定义损失函数
-    ├── keras_utils.py           # Keras 模型加载/推理
-    ├── data_generator.py        # 多线程数据生成器
-    ├── sampler.py               # 数据增强
-    ├── projection_utils.py      # 透视变换
-    ├── drawing_utils.py         # 绘图工具
-    └── utils.py                 # 通用工具
+├── webapp.py                     # Web 图形界面 (Flask)
+├── templates/
+│   └── index.html                # Web UI 页面模板
+├── vehicle-detection.py          # 阶段1: 车辆检测 (YOLOv8)
+├── license-plate-detection.py    # 阶段2: 车牌检测 (WPOD-Net)
+├── license-plate-ocr.py          # 阶段3: 字符识别 (PaddleOCR)
+├── create-model.py               # WPOD-Net 模型定义
+├── train-detector.py             # 训练脚本
+├── run.sh                        # 流水线入口脚本
+├── get-networks.sh               # 下载预训练模型
+├── annotation-tool.py            # 标注工具（GUI）
+├── gen-outputs.py                # 结果可视化输出
+├── pyproject.toml                # 依赖管理
+└── src/                          # 核心库
+    ├── label.py                  # 标注数据类
+    ├── loss.py                   # 自定义损失函数
+    ├── keras_utils.py            # Keras 模型加载/推理
+    ├── data_generator.py         # 多线程数据生成器
+    ├── sampler.py                # 数据增强
+    ├── projection_utils.py       # 透视变换
+    ├── drawing_utils.py          # 绘图工具
+    └── utils.py                  # 通用工具
 ```
