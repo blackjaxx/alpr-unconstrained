@@ -1,4 +1,3 @@
-
 import sys
 import numpy as np
 import cv2
@@ -16,8 +15,6 @@ from src.utils import image_files_from_folder, show
 from src.sampler import augment_sample, labels2output_map
 from src.data_generator import DataGenerator
 
-from pdb import set_trace as pause
-
 
 def load_network(modelpath,input_dim):
 
@@ -32,12 +29,9 @@ def load_network(modelpath,input_dim):
 	output_dim   = output_shape[1]
 	model_stride = input_dim / output_dim
 
-	assert input_dim % output_dim == 0, \
-		'The output resolution must be divisible by the input resolution'
+	assert input_dim % output_dim == 0, 		'The output resolution must be divisible by the input resolution'
 
-	assert model_stride == 2**4, \
-		'Make sure your model generates a feature map with resolution ' \
-		'16x smaller than the input'
+	assert model_stride == 2**4, 		'Make sure your model generates a feature map with resolution ' 		'16x smaller than the input'
 
 	return model, model_stride, input_shape, output_shape
 
@@ -73,10 +67,10 @@ if __name__ == '__main__':
 
 	model,model_stride,xshape,yshape = load_network(args.model,dim)
 
-	opt = getattr(keras.optimizers,args.optimizer)(lr=args.learning_rate)
+	opt = getattr(keras.optimizers,args.optimizer)(learning_rate=args.learning_rate)
 	model.compile(loss=loss, optimizer=opt)
 
-	print 'Checking input directory...'
+	print('Checking input directory...')
 	Files = image_files_from_folder(train_dir)
 
 	Data = []
@@ -87,15 +81,9 @@ if __name__ == '__main__':
 			I = cv2.imread(file)
 			Data.append([I,L[0]])
 
-	print '%d images with labels found' % len(Data)
+	print('%d images with labels found' % len(Data))
 
-	dg = DataGenerator(	data=Data, \
-						process_data_item_func=lambda x: process_data_item(x,dim,model_stride),\
-						xshape=xshape, \
-						yshape=(yshape[0],yshape[1],yshape[2]+1), \
-						nthreads=2, \
-						pool_size=1000, \
-						min_nsamples=100 )
+	dg = DataGenerator(	data=Data, 						process_data_item_func=lambda x: process_data_item(x,dim,model_stride),						xshape=xshape, 						yshape=(yshape[0],yshape[1],yshape[2]+1), 						nthreads=2, 						pool_size=1000, 						min_nsamples=100 )
 	dg.start()
 
 	Xtrain = np.empty((batch_size,dim,dim,3),dtype='single')
@@ -106,20 +94,20 @@ if __name__ == '__main__':
 
 	for it in range(iterations):
 
-		print 'Iter. %d (of %d)' % (it+1,iterations)
+		print('Iter. %d (of %d)' % (it+1,iterations))
 
 		Xtrain,Ytrain = dg.get_batch(batch_size)
 		train_loss = model.train_on_batch(Xtrain,Ytrain)
 
-		print '\tLoss: %f' % train_loss
+		print('\tLoss: %f' % train_loss)
 
 		# Save model every 1000 iterations
 		if (it+1) % 1000 == 0:
-			print 'Saving model (%s)' % model_path_backup
+			print('Saving model (%s)' % model_path_backup)
 			save_model(model,model_path_backup)
 
-	print 'Stopping data generator'
+	print('Stopping data generator')
 	dg.stop()
 
-	print 'Saving model (%s)' % model_path_final
+	print('Saving model (%s)' % model_path_final)
 	save_model(model,model_path_final)
