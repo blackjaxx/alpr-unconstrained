@@ -1,76 +1,72 @@
+#!/usr/bin/env python3
+"""Vehicle detection using YOLOv8."""
 import sys
 import cv2
 import numpy as np
 import traceback
+from os.path import splitext, basename, isdir
+from os import makedirs
+from glob import glob
+from ultralytics import YOLO
+from src.label import Label, lwrite
+from src.utils import crop_region
 
-import darknet.python.darknet as dn
 
-from src.label 				import Label, lwrite
-from os.path 				import splitext, basename, isdir
-from os 					import makedirs
-from src.utils 				import crop_region, image_files_from_folder
-from darknet.python.darknet import detect
+def image_files_from_folder(folder, extensions=('jpg', 'jpeg', 'png')):
+    files = []
+    for ext in extensions:
+        files += glob('%s/*.%s' % (folder, ext))
+        files += glob('%s/*.%s' % (folder, ext.upper()))
+    return sorted(files)
 
 
 if __name__ == '__main__':
+    try:
+        input_dir = sys.argv[1]
+        output_dir = sys.argv[2]
+        vehicle_threshold = 0.5
 
-	try:
-	
-		input_dir  = sys.argv[1]
-		output_dir = sys.argv[2]
+        # COCO dataset classes: car=2, bus=5, truck=7, motorcycle=3
+        VEHICLE_CLASSES = [2, 5, 7]
+        VEHICLE_NAMES = {2: 'car', 5: 'bus', 7: 'truck'}
 
-		vehicle_threshold = .5
+        model = YOLO('yolov8n.pt')
 
-		vehicle_weights = 'data/vehicle-detector/yolo-voc.weights'
-		vehicle_netcfg  = 'data/vehicle-detector/yolo-voc.cfg'
-		vehicle_dataset = 'data/vehicle-detector/voc.data'
+        imgs_paths = image_files_from_folder(input_dir)
 
-		vehicle_net  = dn.load_net(vehicle_netcfg, vehicle_weights, 0)
-		vehicle_meta = dn.load_meta(vehicle_dataset)
+        if not isdir(output_dir):
+            makedirs(output_dir)
 
-		imgs_paths = image_files_from_folder(input_dir)
-		imgs_paths.sort()
+        print('Searching for vehicles using YOLOv8...')
 
-		if not isdir(output_dir):
-			makedirs(output_dir)
+        for img_path in imgs_paths:
+            print('\tScanning %s' % img_path)
+            bname = basename(splitext(img_path)[0])
 
-		print 'Searching for vehicles using YOLO...'
+            results = model(img_path, conf=vehicle_threshold, classes=VEHICLE_CLASSES, verbose=False)
 
-		for i,img_path in enumerate(imgs_paths):
+            Iorig = cv2.imread(img_path)
+            WH = np.array(Iorig.shape[1::-1], dtype=float)
+            Lcars = []
 
-			print '\tScanning %s' % img_path
+            if len(results) and results[0].boxes is not None:
+                boxes = results[0].boxes
+                for i, box in enumerate(boxes):
+                    x1, y1, x2, y2 = box.xyxy[0].tolist()
+                    tl = np.array([x1 / WH[0], y1 / WH[1]])
+                    br = np.array([x2 / WH[0], y2 / WH[1]])
+                    label = Label(0, tl, br)
+                    Icar = crop_region(Iorig, label)
+                    Lcars.append(label)
+                    cv2.imwrite('%s/%s_%dcar.png' % (output_dir, bname, i), Icar)
 
-			bname = basename(splitext(img_path)[0])
+                lwrite('%s/%s_cars.txt' % (output_dir, bname), Lcars)
+                print('\t\t%d vehicles found' % len(Lcars))
+            else:
+                print('\t\tNo vehicles found')
 
-			R,_ = detect(vehicle_net, vehicle_meta, img_path ,thresh=vehicle_threshold)
+    except Exception:
+        traceback.print_exc()
+        sys.exit(1)
 
-			R = [r for r in R if r[0] in ['car','bus']]
-
-			print '\t\t%d cars found' % len(R)
-
-			if len(R):
-
-				Iorig = cv2.imread(img_path)
-				WH = np.array(Iorig.shape[1::-1],dtype=float)
-				Lcars = []
-
-				for i,r in enumerate(R):
-
-					cx,cy,w,h = (np.array(r[2])/np.concatenate( (WH,WH) )).tolist()
-					tl = np.array([cx - w/2., cy - h/2.])
-					br = np.array([cx + w/2., cy + h/2.])
-					label = Label(0,tl,br)
-					Icar = crop_region(Iorig,label)
-
-					Lcars.append(label)
-
-					cv2.imwrite('%s/%s_%dcar.png' % (output_dir,bname,i),Icar)
-
-				lwrite('%s/%s_cars.txt' % (output_dir,bname),Lcars)
-
-	except:
-		traceback.print_exc()
-		sys.exit(1)
-
-	sys.exit(0)
-	
+    sys.exit(0)
